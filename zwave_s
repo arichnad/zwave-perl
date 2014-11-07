@@ -13,6 +13,14 @@
 #
 #        switch a device on or off
 #
+#   zwave_s toggle <unit>
+#
+#        toggle a unit (reverse the on-off)
+#
+#   zwave_s get <unit>
+#
+#        get the status of a unit (level)
+#
 #   zwave_s dim <unit> <level>
 #
 #       set dim level for a dimming device
@@ -56,12 +64,29 @@ $serial_port->write_settings || die "Could not set up port\n";
 my $cmd = shift;
 
 my $expect_answer = 0;
+our $report_value = -1;
 
 if( $cmd eq "switch" ) {
 	my $unit = shift;
 	my $level = shift;
 	$level = 0 if( $level eq "off" );
 	$seq = switch( $unit, $level );
+}
+elsif( $cmd eq "toggle" ) {
+	my $unit = shift;
+	transmit( get($unit) );
+	receive(3);
+	if($report_value == -1) {
+		print "no report received.  cannot toggle\n";
+		return;
+	}
+	my $level = !$report_value;
+	$seq = switch( $unit, $level );
+}
+elsif( $cmd eq "get" ) {
+	my $unit = shift;
+	$seq = get( $unit );
+	$expect_answer = 1;
 }
 elsif( $cmd eq "dim" ) {
 	my $unit = shift;
@@ -91,6 +116,8 @@ else {
 Usage: $0 command [options]
 
    switch unit {on|off}                - switch a unit on or off
+   toggle unit                         - toggle a unit (reverse the on-off)
+   get unit                            - get the status of a unit (level)
    dim unit level                      - set a dimmer to a dim level
    add                                 - add a node
 
@@ -102,7 +129,7 @@ END
 }
 	
 transmit( $seq ) if( $seq );
-receive(1) if( $expect_answer );
+receive(2) if( $expect_answer );
 
 $serial_port->close();
 
@@ -203,6 +230,13 @@ sub packpack {
 }
 
 
+sub get {
+	my( $unit ) = @_;
+
+	return( packpack( mkreqpacket( 0, 0x13, $unit, 2, 0x20, 2, 5 ) ) );
+}
+
+
 sub dim {
 	my( $unit, $level ) = @_;
 
@@ -241,6 +275,15 @@ sub getAssociation {
 
 sub handle_packet {
 	my( $pkg ) = @_;
+
+	if( ($pkg->[1] == 4 ) && ($pkg->[5] == 0x20) && ($pkg->[6] == 3 ) ) {
+		print "basic report from unit ". ($pkg->[3]);
+		print ", value ".($pkg->[7]);
+		print "\n";
+		$report_value = $pkg->[7];
+		$stopreceive = 1;
+		return;
+	}
 
 	if( ($pkg->[1] == 0x4a) && ($pkg->[2] == 3) ) {
 		# add node -- status
