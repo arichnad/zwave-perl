@@ -78,7 +78,7 @@ elsif( $cmd eq "toggle" ) {
 	receive(3);
 	if($report_value == -1) {
 		print "no report received.  cannot toggle\n";
-		return;
+		exit(1);
 	}
 	my $level = !$report_value;
 	$seq = switch( $unit, $level );
