@@ -212,7 +212,7 @@ sub transmit {
 		my $len = length( $seq );
 		print "sending: ";
 		for( my $i=2; $i<$len-1; $i++ ) {
-			print sprintf( "%X ", unpack( "C", substr( $seq, $i, 1 ) ) );
+			print sprintf( "%02X ", unpack( "C", substr( $seq, $i, 1 ) ) );
 		}
 		print "\n";
 		$serial_port->write( $seq );
@@ -301,7 +301,7 @@ sub getAssociation {
 sub handle_packet {
 	my( $pkg ) = @_;
 
-	if( ($pkg->[1] == 4 ) && ($pkg->[5] == 0x20) && ($pkg->[6] == 3 ) ) {
+	if($pkg->[1] == 4 && $pkg->[5] == 0x20 && $pkg->[6] == 3) {
 		print "basic report from unit ". ($pkg->[3]);
 		print ", value ".($pkg->[7]);
 		print "\n";
@@ -310,7 +310,7 @@ sub handle_packet {
 		return;
 	}
 
-	if( ($pkg->[1] == 0x4a || $pkg->[1] == 0x4b) && $pkg->[2] == 3 ) {
+	if(($pkg->[1] == 0x4a || $pkg->[1] == 0x4b) && $pkg->[2] == 3) {
 		# add/remove node -- status
 		$status = $pkg->[3];
 		print "add/remove node: ". $addnode_status{$status}. " ($status)";
@@ -325,7 +325,7 @@ sub handle_packet {
 		return;
 	}
 
-	if( ($pkg->[1] == 4 ) && ($pkg->[5] == 0x85) && ($pkg->[6] == 3 ) ) {
+	if($pkg->[1] == 4 && $pkg->[5] == 0x85 && $pkg->[6] == 3) {
 		print "association report from unit ". ($pkg->[3]);
 		print ", group ".($pkg->[7]);
 		print ", max assoc. ".($pkg->[8]);
@@ -337,7 +337,7 @@ sub handle_packet {
 
 	print "got packet: ";
 	foreach my $byte (@$pkg) {
-		print sprintf( "%X ", $byte );
+		print sprintf( "%02X ", $byte );
 	}
 	print "\n";
 }
