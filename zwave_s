@@ -28,7 +28,14 @@
 #   zwave_s add
 #
 #        include a device to the Z-Wave network. When requested you
-#        have to operate a key.
+#        have to operate a key. (if a node exists on another network, use the
+#        remove first)
+#
+#   zwave_s remove 
+#
+#        remove a device to the Z-Wave network. When requested you
+#        have to operate a key.  You must remove a device before it can be
+#        added to a different network.
 #
 #
 
@@ -96,6 +103,9 @@ elsif( $cmd eq "dim" ) {
 elsif( $cmd eq "addstop" ) {
 	$seq = addNodeStop();
 }
+elsif( $cmd eq "removestop" ) {
+	$seq = removeNodeStop();
+}
 elsif( $cmd eq "listen" ) {
 	receive(30);
 }
@@ -103,6 +113,11 @@ elsif( $cmd eq "add" ) {
 	transmit( addNode() );
 	receive( 60 );
 	$seq = addNodeStop();
+}
+elsif( $cmd eq "remove" ) {
+	transmit( removeNode() );
+	receive( 60 );
+	$seq = removeNodeStop();
 }
 elsif( $cmd eq "associate" ) {
 	$seq = setAssociation( shift, shift, shift );
@@ -119,9 +134,11 @@ Usage: $0 command [options]
    toggle unit                         - toggle a unit (reverse the on-off)
    get unit                            - get the status of a unit (level)
    dim unit level                      - set a dimmer to a dim level
-   add                                 - add a node
+   add                                 - add a node  (if a node exists on another network, use the remove first)
+   remove                              - remove a node
 
    addstop                             - stop adding (not needed normally)
+   removestop                          - stop removing (not needed normally)
    listen                              - listen for incoming packets for a while
 END
 	$serial_port->close();
@@ -259,6 +276,14 @@ sub addNodeStop {
 	return( packpack( mkreqpacket( 0, 0x4a, 0x05 ) ) );
 }
 
+sub removeNode {
+	return( packpack( mkreqpacket( 0, 0x4b, 0x01 ) ) );
+}
+
+sub removeNodeStop {
+	return( packpack( mkreqpacket( 0, 0x4b, 0x05 ) ) );
+}
+
 
 sub setAssociation {
 	my( $node, $group, $target ) = @_;
@@ -285,16 +310,16 @@ sub handle_packet {
 		return;
 	}
 
-	if( ($pkg->[1] == 0x4a) && ($pkg->[2] == 3) ) {
-		# add node -- status
+	if( ($pkg->[1] == 0x4a || $pkg->[1] == 0x4b) && $pkg->[2] == 3 ) {
+		# add/remove node -- status
 		$status = $pkg->[3];
-		print "add node: ". $addnode_status{$status}. " ($status)";
+		print "add/remove node: ". $addnode_status{$status}. " ($status)";
 		if( $status == 3 or $status == 4 ) {
-			print "  ==> added unit: ".$pkg->[4];
+			print "  ==> added/removed unit: ".$pkg->[4];
 		}
 		print "\n";
 		if( $status == 1 ) {
-			print "PLEASE PRESS A KEY ON THE DEVICE TO BE ADDED\n";
+			print "PLEASE PRESS A KEY ON THE DEVICE\n";
 		}
 		$stopreceive = 1 if( grep( $status == $_, 3, 5, 6, 7 ) );
 		return;
